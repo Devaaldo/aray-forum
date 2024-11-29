@@ -16,9 +16,9 @@ Sebelum menjalankan aplikasi ini, pastikan Anda memiliki Python dan pip terinsta
 ## Instalasi
 
 1. **Clone repositori ini:**
-   ```bash
-   git clone https://github.com/username/repo-name.git cd repo-name
-   ```
+ ```bash
+ git clone https://github.com/username/repo-name.git cd repo-name
+ ```
 
 2. **Buat dan aktifkan lingkungan virtual (opsional tetapi disarankan):**
 ```bash
@@ -38,9 +38,9 @@ python app.py
 
 5. **Akses aplikasi di browser:**
 
-   ```bash
-   Buka [http://127.0.0.1:5000](http://127.0.0.1:5000) di browser Anda.
-   ```
+```bash
+Buka [http://127.0.0.1:5000](http://127.0.0.1:5000) di browser Anda.
+```
 
 ## Cara Menggunakan
 
