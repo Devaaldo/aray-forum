@@ -16,21 +16,31 @@ Sebelum menjalankan aplikasi ini, pastikan Anda memiliki Python dan pip terinsta
 ## Instalasi
 
 1. **Clone repositori ini:**
-   bash git clone https://github.com/username/repo-name.git cd repo-name
+   ```bash
+   git clone https://github.com/username/repo-name.git cd repo-name
+   ```
 
 2. **Buat dan aktifkan lingkungan virtual (opsional tetapi disarankan):**
-bash python -m venv venv source venv/bin/activate # Untuk Linux/Mac venv\Scripts\activate # Untuk Windows
+```bash
+python -m venv venv source venv/bin/activate # Untuk Linux/Mac venv\Scripts\activate # Untuk Windows
+```
 
 3. **Instal dependensi yang diperlukan:**
-bash pip install Flask Flask-SQLAlchemy
+```bash
+pip install Flask Flask-SQLAlchemy
+```
 
 4. **Jalankan aplikasi:**
-bash python app.py
+```bash
+python app.py
+```
 
 
 5. **Akses aplikasi di browser:**
 
+   ```bash
    Buka [http://127.0.0.1:5000](http://127.0.0.1:5000) di browser Anda.
+   ```
 
 ## Struktur Proyek
 /project-root │ ├── app.py # File utama aplikasi ├── users.db # Database SQLite └── templates/ # Folder untuk template HTML ├── index.html # Halaman utama └── home.html # Halaman setelah login
