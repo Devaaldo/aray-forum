@@ -61,4 +61,4 @@ Soon
 
 ## Penulis
 
-- [Akbar Pradama](https://github.com/devaaldo)
+- [Muhammad Akbar Pradana / Devaaldo](https://github.com/devaaldo)
