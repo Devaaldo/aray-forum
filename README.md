@@ -1,4 +1,4 @@
-# Flask User Registration and Login System
+# Website Forum - Aray
 
 Proyek ini adalah aplikasi web sederhana yang dibangun menggunakan Flask dan SQLAlchemy. Aplikasi ini memungkinkan pengguna untuk mendaftar, masuk, dan mengelola sesi mereka. Data pengguna disimpan dalam database SQLite.
 
