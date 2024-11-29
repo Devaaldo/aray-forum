@@ -42,11 +42,6 @@ python app.py
    Buka [http://127.0.0.1:5000](http://127.0.0.1:5000) di browser Anda.
    ```
 
-## Struktur Proyek
-/project-root │ ├── app.py # File utama aplikasi ├── users.db # Database SQLite └── templates/ # Folder untuk template HTML ├── index.html # Halaman utama └── home.html # Halaman setelah login
-
-
-
 ## Cara Menggunakan
 
 1. **Pendaftaran:**
