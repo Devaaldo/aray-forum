@@ -15,10 +15,12 @@ def get_db_connection():
     return MySQLdb.connect(**db_config)
 
 # Membuat tabel
-def create_table():
+def create_tables():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Tabel users
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -27,14 +29,38 @@ def create_table():
                 password VARCHAR(200) NOT NULL
             );
         """)
+        
+        # Tabel posts
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS posts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            );
+        """)
+        
+        # Tabel comments
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS comments (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                post_id INT NOT NULL,
+                user_id INT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (post_id) REFERENCES posts (id),
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            );
+        """)
         conn.commit()
     except Exception as e:
-        print(f"Error creating table: {e}")
+        print(f"Error creating tables: {e}")
     finally:
         cursor.close()
         conn.close()
 
-create_table()
+create_tables()
 
 @app.route('/')
 def home():
@@ -89,6 +115,7 @@ def login():
         user = cursor.fetchone()
         if user:
             session['user_id'] = user[0]
+            session['user_name'] = user[1]
             flash(f'Selamat datang, {user[1]}!')
             return redirect(url_for('user_home'))
         else:
@@ -101,28 +128,115 @@ def login():
 
     return redirect(url_for('home'))
 
-@app.route('/home')
+
+@app.route('/home', methods=['GET', 'POST'])
 def user_home():
     user_id = session.get('user_id')
-    if user_id:
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
+    if not user_id:
+        return redirect(url_for('home'))
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-            # Ambil data user
-            cursor.execute("SELECT name FROM users WHERE id = %s", (user_id,))
-            user = cursor.fetchone()
-            return render_template('home.html', user=user[0] if user else None)
-        except Exception as e:
-            flash(f'Error: {e}')
-        finally:
-            cursor.close()
-            conn.close()
-    return redirect(url_for('home'))
+        if request.method == 'POST':
+            if 'content' in request.form:
+                # Menambahkan posting baru
+                content = request.form.get('content')
+                if content:
+                    cursor.execute("INSERT INTO posts (user_id, content) VALUES (%s, %s)", (user_id, content))
+                    conn.commit()
+                    flash('Posting berhasil ditambahkan!')
+            elif 'comment' in request.form:
+                # Menambahkan komentar baru
+                comment = request.form.get('comment')
+                post_id = request.form.get('post_id')
+                if comment and post_id:
+                    cursor.execute("INSERT INTO comments (post_id, user_id, content) VALUES (%s, %s, %s)", 
+                                   (post_id, user_id, comment))
+                    conn.commit()
+                    flash('Komentar berhasil ditambahkan!')
+
+        # Mengambil semua posting
+        cursor.execute("""
+            SELECT posts.id, posts.content, posts.created_at, users.name
+            FROM posts
+            JOIN users ON posts.user_id = users.id
+            ORDER BY posts.created_at DESC
+        """)
+        posts = cursor.fetchall()
+
+        # Mengambil komentar untuk setiap posting
+        post_comments = {}
+        for post in posts:
+            cursor.execute("""
+                SELECT comments.content, comments.created_at, users.name
+                FROM comments
+                JOIN users ON comments.user_id = users.id
+                WHERE comments.post_id = %s
+                ORDER BY comments.created_at ASC
+            """, (post[0],))
+            post_comments[post[0]] = cursor.fetchall()
+
+        return render_template('home.html', user=session['user_name'], posts=posts, post_comments=post_comments)
+    except Exception as e:
+        flash(f'Error: {e}')
+        return redirect(url_for('home'))  # Redirect jika terjadi error
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/post/<int:post_id>', methods=['GET', 'POST'])
+def post_detail(post_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('home'))
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Mengambil posting berdasarkan ID
+        cursor.execute("""
+            SELECT posts.id, posts.content, posts.created_at, users.name
+            FROM posts
+            JOIN users ON posts.user_id = users.id
+            WHERE posts.id = %s
+        """, (post_id,))
+        post = cursor.fetchone()
+
+        # Mengambil komentar untuk posting ini
+        cursor.execute("""
+            SELECT comments.content, comments.created_at, users.name
+            FROM comments
+            JOIN users ON comments.user_id = users.id
+            WHERE comments.post_id = %s
+            ORDER BY comments.created_at ASC
+        """, (post_id,))
+        comments = cursor.fetchall()
+
+        if request.method == 'POST':
+            # Menambahkan komentar baru
+            comment = request.form.get('comment')
+            if comment:
+                cursor.execute("INSERT INTO comments (post_id, user_id, content) VALUES (%s, %s, %s)", 
+                               (post_id, user_id, comment))
+                conn.commit()
+                flash('Komentar berhasil ditambahkan!')
+                return redirect(url_for('post_detail', post_id=post_id))  # Redirect untuk menampilkan komentar yang baru ditambahkan
+
+        return render_template('post_detail.html', post=post, comments=comments)
+
+    except Exception as e:
+        flash(f'Error: {e}')
+        return redirect(url_for('home'))
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route('/logout')
 def logout():
-    session.pop('user_id', None)
+    session.clear()
     flash('Berhasil logout!')
     return redirect(url_for('home'))
 
