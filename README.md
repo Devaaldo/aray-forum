@@ -17,7 +17,7 @@ Sebelum menjalankan aplikasi ini, pastikan Anda memiliki Python dan pip terinsta
 
 1. **Clone repositori ini:**
  ```bash
- git clone https://github.com/username/repo-name.git cd repo-name
+ git clone https://github.com/Devaaldo/aray-forum.git cd repo-name
  ```
 
 2. **Buat dan aktifkan lingkungan virtual (opsional tetapi disarankan):**
