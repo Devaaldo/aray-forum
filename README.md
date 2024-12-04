@@ -17,12 +17,14 @@ Sebelum menjalankan aplikasi ini, pastikan Anda memiliki Python dan pip terinsta
 
 1. **Clone repositori ini:**
  ```bash
- git clone https://github.com/Devaaldo/aray-forum.git cd repo-name
+ git clone https://github.com/Devaaldo/aray-forum.git
+ cd repo-name
  ```
 
 2. **Buat dan aktifkan lingkungan virtual (opsional tetapi disarankan):**
 ```bash
-python -m venv venv source venv/bin/activate # Untuk Linux/Mac venv\Scripts\activate # Untuk Windows
+python -m venv venv source venv/bin/activate # Untuk Linux/Mac
+venv\Scripts\activate # Untuk Windows
 ```
 
 3. **Instal dependensi yang diperlukan:**
