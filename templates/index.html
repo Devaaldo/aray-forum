@@ -40,12 +40,12 @@
 						required
 					/>
 					<!-- Menampilkan pesan kesalahan -->
-					{% with messages = get_flashed_messages() %} {% if messages %}
-					<div class="flash-message error" role="alert">
-						{% for message in messages %} {{ message }}<br />
-						{% endfor %}
+					{% with messages = get_flashed_messages(with_categories=True) %} {% if
+					messages %} {% for category, message in messages %}
+					<div class="flash-message {{ category }}" role="alert">
+						{{ message }}<br />
 					</div>
-					{% endif %} {% endwith %}
+					{% endfor %} {% endif %} {% endwith %}
 					<button type="submit">Daftar</button>
 				</form>
 			</div>
@@ -71,12 +71,12 @@
 						required
 					/>
 					<!-- Menampilkan pesan kesalahan -->
-					{% with messages = get_flashed_messages() %} {% if messages %}
-					<div class="flash-message error" role="alert">
-						{% for message in messages %} {{ message }}<br />
-						{% endfor %}
+					{% with messages = get_flashed_messages(with_categories=True) %} {% if
+					messages %} {% for category, message in messages %}
+					<div class="flash-message {{ category }}" role="alert">
+						{{ message }}<br />
 					</div>
-					{% endif %} {% endwith %}
+					{% endfor %} {% endif %} {% endwith %}
 					<a href="#">Lupa Kata Sandi Anda?</a>
 					<button type="submit">Masuk</button>
 				</form>

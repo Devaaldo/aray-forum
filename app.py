@@ -1,28 +1,68 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from flask_sqlalchemy import SQLAlchemy
+import MySQLdb
+from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = 'secret'
 
-# Mengkonfigurasi DB SQLite
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db_config = {
+    "host": "localhost",
+    "user": "root",
+    "passwd": "sql123",
+    "db": "users_db"
+}
 
-# Menginisialisasi DB
-db = SQLAlchemy(app)
+def get_db_connection():
+    return MySQLdb.connect(**db_config)
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
+def create_table():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                email VARCHAR(100) UNIQUE NOT NULL,
+                password VARCHAR(200) NOT NULL
+            );
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tweets (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+        """)
+        conn.commit()
+    except Exception as e:
+        print(f"Error creating table: {e}")
+    finally:
+        cursor.close()
+        conn.close()
 
-    def __repr__(self):
-        return f'<User {self.name}>'
+create_table()
 
-# Membuat DB
-with app.app_context():
-    db.create_all()
+def time_ago(timestamp):
+    now = datetime.now()
+    diff = now - timestamp
+
+    seconds = diff.total_seconds()
+    if seconds < 60:
+        return f"{int(seconds)} detik yang lalu"
+    elif seconds < 3600:
+        return f"{int(seconds // 60)} menit yang lalu"
+    elif seconds < 86400:
+        return f"{int(seconds // 3600)} jam yang lalu"
+    elif seconds < 2592000:
+        return f"{int(seconds // 86400)} hari yang lalu"
+    elif seconds < 31536000:
+        return f"{int(seconds // 2592000)} bulan yang lalu"
+    else:
+        return f"{int(seconds // 31536000)} tahun yang lalu"
 
 @app.route('/')
 def home():
@@ -35,20 +75,29 @@ def register():
     password = request.form.get('password')
 
     if not name or not email or not password:
-        flash('Semua kolom harus diisi!')
-        return redirect(url_for('home'))
-    
-    # Periksa apakah email sudah terdaftar
-    if User.query.filter_by(email=email).first():
-        flash('Email sudah terdaftar!')  # Menyimpan pesan kesalahan
+        flash('Semua kolom harus diisi!', 'error')
         return redirect(url_for('home'))
 
-    # Membuat user baru
-    new_user = User(name=name, email=email, password=password)
-
-    # Menambahkan user ke database
-    db.session.add(new_user)
-    db.session.commit()
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+        if cursor.fetchone():
+            flash('Email sudah terdaftar!', 'error')
+            return redirect(url_for('home'))
+        
+        hashed_password = generate_password_hash(password)
+        cursor.execute(
+            "INSERT INTO users (name, email, password) VALUES (%s, %s, %s)",
+            (name, email, hashed_password)
+        )
+        conn.commit()
+        flash('Registrasi berhasil!', 'success')
+    except Exception as e:
+        flash(f'Error: {e}', 'error')
+    finally:
+        cursor.close()
+        conn.close()
 
     return redirect(url_for('home'))
 
@@ -57,27 +106,94 @@ def login():
     email = request.form.get('email')
     password = request.form.get('password')
 
-    # Check jika sudah terdaftar
-    user = User.query.filter_by(email=email, password=password).first()
-    if user:
-        session['user_id'] = user.id  
-        return redirect(url_for('user_home')) 
-    else:
-        flash('Email & Password salah!')
-        return redirect(url_for('home'))
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, email, password FROM users WHERE email = %s", (email,))
+        user = cursor.fetchone()
+        if user and check_password_hash(user[3], password):
+            session['user_id'] = user[0]
+            print(f"User ID set in session: {session['user_id']}")
+            return redirect(url_for('user_home'))
+        else:
+            flash('Email atau password salah!', 'error')
+    except Exception as e:
+        flash(f'Error: {e}')
+    finally:
+        cursor.close()
+        conn.close()
+    return redirect(url_for('home'))
 
 @app.route('/home')
 def user_home():
     user_id = session.get('user_id')
+    print(f"Session User ID: {user_id}")
+
+    tweets = []
+    user_info = None
     if user_id:
-        user = User.query.get(user_id)
-        return render_template('home.html', user=user)
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT name, email FROM users WHERE id = %s", (user_id,))
+            user = cursor.fetchone()
+            print(f"User fetched from database: {user}")
+
+            if user:
+                user_info = {
+                    'name': user[0],
+                    'username': user[1].split('@')[0]
+                }
+                print(f"User Info: {user_info}")
+
+            cursor.execute("SELECT t.content, t.created_at, u.name FROM tweets t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC")
+            tweets = cursor.fetchall()
+
+            tweets_with_time_ago = []
+            for tweet in tweets:
+                content, created_at, name = tweet
+                time_ago_str = time_ago(created_at)
+                tweets_with_time_ago.append((content, time_ago_str, name))
+
+            return render_template('home.html', user_info=user_info, tweets=tweets_with_time_ago)
+        except Exception as e:
+            flash(f'Error: {e}')
+        finally:
+            cursor.close()
+            conn.close()
     else:
-        return redirect(url_for('home')) 
+        print("User ID not found in session.")
+    return redirect(url_for('home'))
+
+@app.route('/postingan', methods=['POST'])
+def postingan():
+    user_id = session.get('user_id')
+    content = request.form.get('content')
+
+    if not user_id or not content:
+        flash('Anda harus login dan mengisi konten tweet!', 'error')
+        return redirect(url_for('user_home'))
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO tweets (user_id, content) VALUES (%s, %s)",
+            (user_id, content)
+        )
+        conn.commit()
+    except Exception as e:
+        flash(f'Error: {e}', 'error')
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('user_home'))
 
 @app.route('/logout')
 def logout():
-    session.pop('user_id', None) 
+    session.pop('user_id', None)
+    flash('Berhasil logout!', 'success')
     return redirect(url_for('home'))
 
 if __name__ == '__main__':
