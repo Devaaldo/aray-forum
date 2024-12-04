@@ -1,63 +1,74 @@
 # Website Forum - Aray
 
-Proyek ini adalah aplikasi web sederhana yang dibangun menggunakan Flask dan SQLAlchemy. Aplikasi ini memungkinkan pengguna untuk mendaftar, masuk, dan mengelola sesi mereka. Data pengguna disimpan dalam database SQLite.
+This project is a simple web application built using Flask and SQLAlchemy. The application allows users to register, log in, and manage their sessions. User data is stored in an SQLite database.
 
-## Fitur
+## Features
 
-- Pendaftaran pengguna dengan validasi input
-- Login pengguna dengan pengecekan email dan password
-- Manajemen sesi pengguna
-- Pesan kesalahan yang informatif
+- User registration with input validation
+- User login with email and password verification
+- User session management
+- Informative error messages
+- Users can post tweets and view a tweet feed
 
 ## Prerequisites
 
-Sebelum menjalankan aplikasi ini, pastikan Anda memiliki Python dan pip terinstal di sistem Anda. Anda juga perlu menginstal beberapa paket yang diperlukan.
+Before running this application, ensure you have Python and pip installed on your system. You will also need to install some required packages.
 
-## Instalasi
+## Installation
 
-1. **Clone repositori ini:**
+1. **Clone this repository:**
  ```bash
  git clone https://github.com/Devaaldo/aray-forum.git
  cd repo-name
  ```
 
-2. **Buat dan aktifkan lingkungan virtual (opsional tetapi disarankan):**
+2. **Create and activate a virtual environment (optional but recommended):**
 ```bash
-python -m venv venv source venv/bin/activate # Untuk Linux/Mac
+python -m venv venv source venv/bin/activate # For Linux/Mac
+```
+```bash
 venv\Scripts\activate # Untuk Windows
 ```
 
-3. **Instal dependensi yang diperlukan:**
+3. **Install the required dependencies:**
 ```bash
 pip install Flask Flask-SQLAlchemy
 ```
 
-4. **Jalankan aplikasi:**
+4. **Run the application:**
 ```bash
 python app.py
 ```
 
 
-5. **Akses aplikasi di browser:**
 
-```bash
-Buka [http://127.0.0.1:5000](http://127.0.0.1:5000) di browser Anda.
-```
+5. **Access the application in your browser:**
+   Open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
 
-## Cara Menggunakan
+## How to Use
 
-1. **Pendaftaran:**
-   - Masukkan nama, email, dan password di halaman utama dan klik "Daftar".
-   - Jika email sudah terdaftar, Anda akan menerima pesan kesalahan.
+1. **Registration:**
+   - Enter your name, email, and password on the homepage and click "Register".
+   - If the email is already registered, you will receive an error message.
 
 2. **Login:**
-   - Masukkan email dan password yang telah didaftarkan.
-   - Jika berhasil, Anda akan diarahkan ke halaman pengguna.
+   - Enter the email and password you registered with.
+   - If successful, you will be redirected to the user homepage.
 
 3. **Logout:**
-   - Klik tombol logout untuk keluar dari sesi.
+   - Click the logout button to exit the session.
 
-## Kontribusi
+4. **Post a Tweet:**
+   - After logging in, you can post tweets through the form provided on the user homepage.
+
+5. **View Tweet Feed:**
+   - On the user homepage, you can see all tweets posted by other users.
+
+## Contribution
+
 - [Muhammad Akbar Pradana / Devaaldo](https://github.com/devaaldo)
-
 - [Amar Ma'ruf Ainul Yaqin / Amay](https://github.com/amarmarufainulyaqin)
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
