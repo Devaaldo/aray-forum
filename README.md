@@ -58,8 +58,9 @@ Buka [http://127.0.0.1:5000](http://127.0.0.1:5000) di browser Anda.
    - Klik tombol logout untuk keluar dari sesi.
 
 ## Kontribusi
+- [Muhammad Akbar Pradana / Devaaldo](https://github.com/devaaldo)
 
-Soon
+- [Amar Ma'ruf Ainul Yaqin / Amay](https://github.com/amarmarufainulyaqin)
 
 ## Penulis
 
