@@ -61,7 +61,3 @@ Buka [http://127.0.0.1:5000](http://127.0.0.1:5000) di browser Anda.
 - [Muhammad Akbar Pradana / Devaaldo](https://github.com/devaaldo)
 
 - [Amar Ma'ruf Ainul Yaqin / Amay](https://github.com/amarmarufainulyaqin)
-
-## Penulis
-
-- [Muhammad Akbar Pradana / Devaaldo](https://github.com/devaaldo)
