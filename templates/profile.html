@@ -26,8 +26,10 @@
 						<li class="nav-items logo">
 							<a href="#"><i class="fab fa-twitter"></i></a>
 						</li>
-						<li class="nav-items current-page">
-							<a href="#"><i class="fas fa-home"></i> Home</a>
+						<li class="nav-items">
+							<a href="{{ url_for('home') }}"
+								><i class="fas fa-home"></i> Home</a
+							>
 						</li>
 						<li class="nav-items">
 							<a href="#"><i class="fas fa-hashtag"></i> Explore</a>
@@ -35,11 +37,14 @@
 						<li class="nav-items">
 							<a href="#"><i class="far fa-bell"></i> Notifikasi</a>
 						</li>
-						<li class="nav-items">
-							<a href="{{ url_for('profile') }}"
-								><i class="far fa-user"></i> Profil</a
+						<li class="nav-items current-page">
+							<a
+								href="{{ url_for('user_profile_view', user_id=user_info.id) }}"
 							>
+								<i class="far fa-user"></i> Profil
+							</a>
 						</li>
+
 						<li class="nav-items">
 							<a href="#"><i class="far fa-envelope"></i> Pesan</a>
 						</li>
@@ -65,8 +70,12 @@
 						alt="profile"
 					/>
 					<div class="profile-link">
-						<p class="full-name">{{ user_info.name }}</p>
-						<p class="user-name">@{{ user_info.username }}</p>
+						<p class="full-name">
+							{{ user_info.name if user_info else 'Guest' }}
+						</p>
+						<p class="user-name">
+							@{{ user_info.name if user_info else 'guest' }}
+						</p>
 					</div>
 					<div class="options-icon"><i class="fas fa-caret-down"></i></div>
 				</div>
@@ -126,10 +135,9 @@
 						</div>
 					</div>
 					<div class="user-tab-2">
-						<h2>MOSES MED</h2>
+						<h2>{{ user_info.name }}</h2>
 						<div class="tab-2-handle">
-							<p>@MOSESMED_XY</p>
-							<span>Follows you</span>
+							<p>@{{ user_info.name }}</p>
 						</div>
 					</div>
 					<div class="user-tab-3">
@@ -216,37 +224,6 @@
 				</div>
 				{% endfor %}
 
-				<div class="tweets">
-					<div class="user-pics">
-						<img
-							src="{{ url_for('static', filename='img/mas_luis.jpg') }}"
-							alt="user3"
-						/>
-					</div>
-					<div class="user-content-box">
-						<div class="user-names">
-							<hi class="full-name">Mas Luis</hi>
-							<p class="user-name">@arianto_luis</p>
-							<p class="time">. 1hr</p>
-						</div>
-
-						<div class="user-content">
-							<p>
-								Jual senjata api illegal di Indonesia. COD daerah gamping.
-								<a href="#">#senjata_api</a> <a href="#">#illegal</a>
-								<a href="#">#indonesia</a>
-							</p>
-						</div>
-
-						<div class="content-icons">
-							<i class="far fa-comment blue"> 2k</i>
-							<i class="fas fa-retweet green"> 6k</i>
-							<i class="far fa-heart red"> 10k</i>
-							<i class="fas fa-chevron-up blue"></i>
-						</div>
-					</div>
-				</div>
-
 				<!-- Tambahkan konten tweet lainnya di sini -->
 
 				<div class="pagnation">
@@ -326,5 +303,6 @@
 		<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
 		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+		<script src="{{ url_for('static', filename='js/user.js') }}"></script>
 	</body>
 </html>

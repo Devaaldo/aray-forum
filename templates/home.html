@@ -35,10 +35,13 @@
 							<a href="#"><i class="far fa-bell"></i> Notifikasi</a>
 						</li>
 						<li class="nav-items">
-							<a href="{{ url_for('profile') }}"
-								><i class="far fa-user"></i> Profil</a
+							<a
+								href="{{ url_for('user_profile_view', user_id=user_info.id) if user_info else '#' }}"
 							>
+								<i class="far fa-user"></i> Profil
+							</a>
 						</li>
+
 						<li class="nav-items">
 							<a href="#"><i class="far fa-envelope"></i> Pesan</a>
 						</li>
@@ -62,11 +65,15 @@
 				<div class="profile-box">
 					<img
 						src="{{ url_for('static', filename='img/profile_nobg.jpg') }}"
-						alt="profile"
+						alt="Profile Picture"
 					/>
 					<div class="profile-link">
-						<p class="full-name">{{ user_info.name }}</p>
-						<p class="user-name">@{{ user_info.username }}</p>
+						<p class="full-name">
+							{{ user_info.name if user_info else 'Guest' }}
+						</p>
+						<p class="user-name">
+							@{{ user_info.username if user_info else 'guest' }}
+						</p>
 					</div>
 					<div class="options-icon"><i class="fas fa-caret-down"></i></div>
 				</div>
@@ -105,36 +112,34 @@
 					</form>
 				</div>
 
-				<!-- User Content -->
 				{% for tweet in tweets %}
 				<div class="tweets">
 					<div class="user-pics">
 						<img
 							src="{{ url_for('static', filename='img/profile_nobg.jpg') }}"
-							alt="user3"
+							alt="User Picture"
 						/>
 					</div>
-
 					<div class="user-content-box">
 						<div class="user-names">
-							<hi class="full-name">{{ tweet[2] }}</hi>
-							<p class="user-name">@{{ tweet[2] }}</p>
+							<a href="{{ url_for('user_profile_view', user_id=tweet[2]) }}">
+								<h2 class="full-name">{{ tweet[3] }}</h2>
+							</a>
+							<p class="user-name">@{{ tweet[3] }}</p>
 							<p class="time">{{ tweet[1] }}</p>
 						</div>
-
 						<div class="user-content">
 							<p>{{ tweet[0] }}</p>
 						</div>
-
 						<div class="content-icons">
 							<i class="far fa-comment blue"> 109</i>
 							<i class="fas fa-retweet green"> 865</i>
-							<i class="far fa-heart red">1.6k</i>
+							<i class="far fa-heart red"> 1.6k</i>
 							<i class="fas fa-chevron-up blue"></i>
 						</div>
 					</div>
 				</div>
-				{% endfor %}
+				{% else %} {% endfor %}
 
 				<div class="tweets">
 					<div class="user-pics">
@@ -247,5 +252,6 @@
 		<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
 		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+		<script src="{{ url_for('static', filename='js/user.js') }}"></script>
 	</body>
 </html>

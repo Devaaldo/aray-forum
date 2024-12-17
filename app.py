@@ -37,12 +37,23 @@ def create_table():
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS followers (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                follower_id INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (follower_id) REFERENCES users(id)
+            );
+        """)
         conn.commit()
     except Exception as e:
         print(f"Error creating table: {e}")
     finally:
         cursor.close()
         conn.close()
+
 
 create_table()
 
@@ -66,7 +77,45 @@ def time_ago(timestamp):
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    user_id = session.get('user_id')  # Ambil user_id dari session
+
+    # Jika pengguna belum login, arahkan ke halaman login
+    if not user_id:
+        return redirect(url_for('login_page'))  # Ganti 'login_page' dengan nama route untuk halaman login
+
+    user_info = None
+    tweets = [] 
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, email FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+
+        if user:
+            user_info = {
+                'name': user[0],
+                'username': user[1].split('@')[0],
+                'id': user_id  # Pastikan id ditambahkan di sini
+            }
+
+        cursor.execute("""
+            SELECT t.content, t.created_at, u.id, u.name 
+            FROM tweets t 
+            JOIN users u ON t.user_id = u.id 
+            ORDER BY t.created_at DESC
+        """)
+        tweets = cursor.fetchall()  
+
+    except Exception as e:
+        print(f"Error fetching data: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return render_template('home.html', user_info=user_info, tweets=tweets)
+
+
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -101,33 +150,35 @@ def register():
 
     return redirect(url_for('home'))
 
-@app.route('/login', methods=['POST'])
-def login():
-    email = request.form.get('email')
-    password = request.form.get('password')
+@app.route('/login', methods=['GET', 'POST'])
+def login_page():
+    if request.method == 'POST':
+        # Logika untuk menangani login
+        email = request.form.get('email')
+        password = request.form.get('password')
 
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, name, email, password FROM users WHERE email = %s", (email,))
-        user = cursor.fetchone()
-        if user and check_password_hash(user[3], password):
-            session['user_id'] = user[0]
-            print(f"User ID set in session: {session['user_id']}")
-            return redirect(url_for('user_home'))
-        else:
-            flash('Email atau password salah!', 'error')
-    except Exception as e:
-        flash(f'Error: {e}')
-    finally:
-        cursor.close()
-        conn.close()
-    return redirect(url_for('home'))
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, email, password FROM users WHERE email = %s", (email,))
+            user = cursor.fetchone()
+            if user and check_password_hash(user[3], password):
+                session['user_id'] = user[0]
+                return redirect(url_for('home'))  # Arahkan ke halaman home setelah login
+            else:
+                flash('Email atau password salah!', 'error')
+        except Exception as e:
+            flash(f'Error: {e}')
+        finally:
+            cursor.close()
+            conn.close()
+
+    return render_template('index.html')  # Tampilkan halaman login
+
 
 @app.route('/home')
 def user_home():
     user_id = session.get('user_id')
-    print(f"Session User ID: {user_id}")
 
     tweets = []
     user_info = None
@@ -137,23 +188,25 @@ def user_home():
             cursor = conn.cursor()
             cursor.execute("SELECT name, email FROM users WHERE id = %s", (user_id,))
             user = cursor.fetchone()
-            print(f"User fetched from database: {user}")
 
             if user:
                 user_info = {
                     'name': user[0],
-                    'username': user[1].split('@')[0]
+                    'username': user[1].split('@')[0],
+                    'id': user_id  # Pastikan id ditambahkan di sini
                 }
-                print(f"User Info: {user_info}")
 
-            cursor.execute("SELECT t.content, t.created_at, u.name FROM tweets t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC")
+            cursor.execute("SELECT t.content, t.created_at, u.id, u.name FROM tweets t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC")
             tweets = cursor.fetchall()
+
+            # Tambahkan pernyataan debugging di sini
+            print(f"Tweets fetched: {tweets}")  # Debugging untuk memeriksa nilai tweets
 
             tweets_with_time_ago = []
             for tweet in tweets:
-                content, created_at, name = tweet
+                content, created_at, user_id, name = tweet  # Pastikan user_id diambil dari tweet
                 time_ago_str = time_ago(created_at)
-                tweets_with_time_ago.append((content, time_ago_str, name))
+                tweets_with_time_ago.append((content, time_ago_str, name, user_id))
 
             return render_template('home.html', user_info=user_info, tweets=tweets_with_time_ago)
         except Exception as e:
@@ -162,8 +215,10 @@ def user_home():
             cursor.close()
             conn.close()
     else:
-        print("User ID not found in session.")
+        flash('Anda harus login untuk mengakses halaman ini!', 'error')
     return redirect(url_for('home'))
+
+
 
 @app.route('/postingan', methods=['POST'])
 def postingan():
@@ -194,10 +249,41 @@ def postingan():
 def logout():
     session.pop('user_id', None)
     flash('Berhasil logout!', 'success')
-    return redirect(url_for('home'))
+    return redirect(url_for('login_page'))
 
-@app.route('/profile')
-def profile():
+@app.route('/profile/<int:user_id>', endpoint='user_profile_view')
+def user_profile(user_id):
+    user_info = None
+    try:
+        print(f"Fetching profile for user_id: {user_id}")  # Debugging untuk memeriksa nilai user_id
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, email FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+
+        if user:
+            user_info = {
+                'name': user[0],
+                'email': user[1],
+                'id': user_id
+            }
+        else:
+            flash('Pengguna tidak ditemukan!', 'error')
+            return redirect(url_for('home'))
+    except Exception as e:
+        print(f'Error fetching user profile: {e}')
+        flash('Terjadi kesalahan saat mengambil profil pengguna.', 'error')
+        return redirect(url_for('home'))
+    finally:
+        cursor.close()
+        conn.close()
+
+    return render_template('profile.html', user_info=user_info)
+
+
+
+@app.route('/profile', endpoint='current_user_profile')  # Ubah nama endpoint
+def current_profile():
     user_id = session.get('user_id')
     user_info = None
 
@@ -205,17 +291,25 @@ def profile():
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT name, email, (SELECT COUNT(*) FROM tweets WHERE user_id = %s) AS tweet_count, (SELECT COUNT(*) FROM followers WHERE user_id = %s) AS follower_count, (SELECT COUNT(*) FROM following WHERE user_id = %s) AS following_count FROM users WHERE id = %s", (user_id, user_id, user_id, user_id))
+            cursor.execute("""
+                SELECT id, name, email, 
+                    (SELECT COUNT(*) FROM tweets WHERE user_id = %s) AS tweet_count, 
+                    (SELECT COUNT(*) FROM followers WHERE user_id = %s) AS follower_count, 
+                    (SELECT COUNT(*) FROM followers WHERE follower_id = %s) AS following_count 
+                FROM users 
+                WHERE id = %s
+            """, (user_id, user_id, user_id, user_id))
             user = cursor.fetchone()
 
             if user:
                 user_info = {
-                    'name': user[0],
-                    'email': user[1],
-                    'tweet_count': user[2],
-                    'follower_count': user[3],
-                    'following_count': user[4],
-                    'username': user[1].split('@')[0]  # Mengambil username dari email
+                    'id': user[0],  # Menyimpan user_id
+                    'name': user[1],
+                    'email': user[2],
+                    'tweet_count': user[3],
+                    'follower_count': user[4],
+                    'following_count': user[5],
+                    'username': user[2].split('@')[0]  # Mengambil username dari email
                 }
         except Exception as e:
             flash(f'Error: {e}')
@@ -227,6 +321,7 @@ def profile():
         return redirect(url_for('home'))
 
     return render_template('profile.html', user_info=user_info)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
