@@ -923,7 +923,7 @@ ul {
 }
 .tab-4-item:hover {
 	text-decoration: underline;
-	color: white;
+	color: black;
 }
 .tab-4-item h2 {
 	color: var(--twitter-white);

@@ -205,8 +205,12 @@
 
 					<div class="user-content-box">
 						<div class="user-names">
-							<hi class="full-name">{{ tweet[2] }}</hi>
-							<p class="user-name">@{{ tweet[2] }}</p>
+							<hi class="full-name"
+								>{{ user_info.name if user_info else 'Guest' }}</hi
+							>
+							<p class="user-name">
+								@{{ user_info.name if user_info else 'Guest' }}
+							</p>
 							<p class="time">{{ tweet[1] }}</p>
 						</div>
 

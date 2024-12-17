@@ -143,7 +143,7 @@ def register():
         conn.commit()
         flash('Registrasi berhasil!', 'success')
     except Exception as e:
-        flash(f'Error: {e}', 'error')
+        flash('error')
     finally:
         cursor.close()
         conn.close()
@@ -176,10 +176,27 @@ def login_page():
     return render_template('index.html')  # Tampilkan halaman login
 
 
-@app.route('/home')
+@app.route('/home', methods=['GET', 'POST'])
 def user_home():
     user_id = session.get('user_id')
 
+    if request.method == 'POST':
+        # Menangani pengunggahan postingan
+        content = request.form.get('content')  # Ambil konten dari form
+        if content:
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO tweets (user_id, content) VALUES (%s, %s)", (user_id, content))
+                conn.commit()
+                flash('Postingan berhasil ditambahkan!', 'success')
+            except Exception as e:
+                flash(f'Error: {e}', 'error')
+            finally:
+                cursor.close()
+                conn.close()
+
+    # Ambil data pengguna dan postingan
     tweets = []
     user_info = None
     if user_id:
@@ -193,30 +210,23 @@ def user_home():
                 user_info = {
                     'name': user[0],
                     'username': user[1].split('@')[0],
-                    'id': user_id  # Pastikan id ditambahkan di sini
+                    'id': user_id
                 }
 
             cursor.execute("SELECT t.content, t.created_at, u.id, u.name FROM tweets t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC")
             tweets = cursor.fetchall()
 
-            # Tambahkan pernyataan debugging di sini
-            print(f"Tweets fetched: {tweets}")  # Debugging untuk memeriksa nilai tweets
-
-            tweets_with_time_ago = []
-            for tweet in tweets:
-                content, created_at, user_id, name = tweet  # Pastikan user_id diambil dari tweet
-                time_ago_str = time_ago(created_at)
-                tweets_with_time_ago.append((content, time_ago_str, name, user_id))
-
-            return render_template('home.html', user_info=user_info, tweets=tweets_with_time_ago)
         except Exception as e:
-            flash(f'Error: {e}')
+            flash(f'Error fetching data: {e}')
         finally:
             cursor.close()
             conn.close()
     else:
         flash('Anda harus login untuk mengakses halaman ini!', 'error')
-    return redirect(url_for('home'))
+        return redirect(url_for('login_page'))
+
+    return render_template('home.html', user_info=user_info, tweets=tweets)
+
 
 
 
@@ -254,8 +264,8 @@ def logout():
 @app.route('/profile/<int:user_id>', endpoint='user_profile_view')
 def user_profile(user_id):
     user_info = None
+    tweets = []  # Untuk menyimpan postingan pengguna
     try:
-        print(f"Fetching profile for user_id: {user_id}")  # Debugging untuk memeriksa nilai user_id
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT name, email FROM users WHERE id = %s", (user_id,))
@@ -267,6 +277,10 @@ def user_profile(user_id):
                 'email': user[1],
                 'id': user_id
             }
+
+            # Ambil postingan pengguna
+            cursor.execute("SELECT content, created_at FROM tweets WHERE user_id = %s ORDER BY created_at DESC", (user_id,))
+            tweets = cursor.fetchall()
         else:
             flash('Pengguna tidak ditemukan!', 'error')
             return redirect(url_for('home'))
@@ -278,7 +292,8 @@ def user_profile(user_id):
         cursor.close()
         conn.close()
 
-    return render_template('profile.html', user_info=user_info)
+    return render_template('profile.html', user_info=user_info, tweets=tweets)
+
 
 
 
