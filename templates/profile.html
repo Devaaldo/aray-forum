@@ -211,11 +211,29 @@
 							<p class="user-name">
 								@{{ user_info.name if user_info else 'Guest' }}
 							</p>
-							<p class="time">{{ tweet[1] }}</p>
+							<p class="time">{{ (tweet[1]) }}</p>
 						</div>
 
 						<div class="user-content">
 							<p>{{ tweet[0] }}</p>
+							{% if tweet[4] %}
+							<div class="media">
+								{% if tweet[4].endswith(('.png', '.jpg', '.jpeg', '.gif')) %}
+								<img
+									src="{{ url_for('static', filename=tweet[4]) }}"
+									alt="Uploaded Image"
+								/>
+								{% elif tweet[4].endswith(('.mp4', '.avi', '.mkv')) %}
+								<video controls>
+									<source
+										src="{{ url_for('static', filename=tweet[4]) }}"
+										type="video/mp4"
+									/>
+									Your browser does not support the video tag.
+								</video>
+								{% endif %}
+							</div>
+							{% endif %}
 						</div>
 
 						<div class="content-icons">

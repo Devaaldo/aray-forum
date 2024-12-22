@@ -2,8 +2,12 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import MySQLdb
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+import os
 
 app = Flask(__name__)
+UPLOAD_FOLDER = 'static/uploads'  
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.secret_key = 'secret'
 
 db_config = {
@@ -20,6 +24,8 @@ def create_table():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Membuat tabel users
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -28,6 +34,8 @@ def create_table():
                 password VARCHAR(200) NOT NULL
             );
         """)
+        
+        # Membuat tabel tweets
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tweets (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -37,6 +45,14 @@ def create_table():
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
         """)
+
+        # Memeriksa apakah kolom image_path ada, jika tidak, tambahkan
+        cursor.execute("SHOW COLUMNS FROM tweets LIKE 'image_path';")
+        result = cursor.fetchone()
+        if not result:
+            cursor.execute("ALTER TABLE tweets ADD COLUMN image_path VARCHAR(255);")
+
+        # Membuat tabel followers
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS followers (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -47,6 +63,7 @@ def create_table():
                 FOREIGN KEY (follower_id) REFERENCES users(id)
             );
         """)
+        
         conn.commit()
     except Exception as e:
         print(f"Error creating table: {e}")
@@ -55,7 +72,7 @@ def create_table():
         conn.close()
 
 
-create_table()
+
 
 def time_ago(timestamp):
     now = datetime.now()
@@ -100,12 +117,12 @@ def home():
             }
 
         cursor.execute("""
-            SELECT t.content, t.created_at, u.id, u.name 
+            SELECT t.content, t.created_at, t.image_path, u.id, u.name 
             FROM tweets t 
             JOIN users u ON t.user_id = u.id 
             ORDER BY t.created_at DESC
         """)
-        tweets = cursor.fetchall()  
+        tweets = cursor.fetchall()
 
     except Exception as e:
         print(f"Error fetching data: {e}")
@@ -213,7 +230,7 @@ def user_home():
                     'id': user_id
                 }
 
-            cursor.execute("SELECT t.content, t.created_at, u.id, u.name FROM tweets t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC")
+            cursor.execute("SELECT t.content, t.created_at, t.image_path, u.id, u.name FROM tweets t JOIN users u ON t.user_id = u.id ORDER BY t.created_at DESC")
             tweets = cursor.fetchall()
 
         except Exception as e:
@@ -234,6 +251,7 @@ def user_home():
 def postingan():
     user_id = session.get('user_id')
     content = request.form.get('content')
+    image = request.files.get('image')  # **Get uploaded image**
 
     if not user_id or not content:
         flash('Anda harus login dan mengisi konten tweet!', 'error')
@@ -242,11 +260,21 @@ def postingan():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Save image if it exists
+        image_path = None
+        if image:
+            image_filename = secure_filename(image.filename)  # **Secure the filename**
+            image.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
+            image_path = f'uploads/{image_filename}'  # **Save relative path**
+
+        # Insert tweet into database including image_path
         cursor.execute(
-            "INSERT INTO tweets (user_id, content) VALUES (%s, %s)",
-            (user_id, content)
+            "INSERT INTO tweets (user_id, content, image_path) VALUES (%s, %s, %s)",
+            (user_id, content, image_path)  # **Include image_path here**
         )
         conn.commit()
+        flash('Postingan berhasil ditambahkan!', 'success')
     except Exception as e:
         flash(f'Error: {e}', 'error')
     finally:
@@ -254,6 +282,9 @@ def postingan():
         conn.close()
 
     return redirect(url_for('user_home'))
+
+
+
 
 @app.route('/logout')
 def logout():
@@ -339,4 +370,5 @@ def current_profile():
 
 
 if __name__ == '__main__':
+    create_table()
     app.run(debug=True)
