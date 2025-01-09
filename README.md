@@ -75,6 +75,7 @@ python app.py
 
 - [Muhammad Akbar Pradana / Devaaldo](https://github.com/devaaldo)
 - [Amar Ma'ruf Ainul Yaqin / Amay](https://github.com/amarmarufainulyaqin)
+- [Rega Refrizal Indrayana / RegaRI](https://github.com/RegaRI)
 
 ## License
 
