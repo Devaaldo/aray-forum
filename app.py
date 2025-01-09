@@ -13,7 +13,7 @@ app.secret_key = 'secret'
 db_config = {
     "host": "localhost",
     "user": "root",
-    "passwd": "sql123",
+    "passwd": "kalitengah",
     "db": "users_db"
 }
 
@@ -372,3 +372,5 @@ def current_profile():
 if __name__ == '__main__':
     create_table()
     app.run(debug=True)
+
+# test
