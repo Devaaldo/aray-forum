@@ -1,4 +1,4 @@
-# Website Forum - Aray-
+# Website Forum - Aray
 
 This project is a simple web application built using Flask and SQLAlchemy. The application allows users to register, log in, and manage their sessions. User data is stored in an SQLite database.
 
