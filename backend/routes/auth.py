@@ -6,6 +6,10 @@ from flask_jwt_extended import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User
 import re
+import logging
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -28,18 +32,27 @@ def validate_password(password):
 @auth_bp.route('/register', methods=['POST'])
 def register():
     try:
+        # Log incoming request
+        logger.info("Registration attempt received")
+        
         data = request.get_json()
+        if not data:
+            logger.warning("No JSON data received in registration")
+            return jsonify({'error': 'Data JSON diperlukan'}), 400
         
         # Validate required fields
         required_fields = ['name', 'email', 'username', 'password']
         for field in required_fields:
             if not data.get(field):
+                logger.warning(f"Missing field in registration: {field}")
                 return jsonify({'error': f'{field} wajib diisi'}), 400
         
         name = data['name'].strip()
         email = data['email'].strip().lower()
         username = data['username'].strip().lower()
         password = data['password']
+        
+        logger.info(f"Registration attempt for email: {email}, username: {username}")
         
         # Validate email format
         if not validate_email(email):
@@ -55,10 +68,14 @@ def register():
             return jsonify({'error': message}), 400
         
         # Check if user already exists
-        if User.query.filter_by(email=email).first():
+        existing_email = User.query.filter_by(email=email).first()
+        if existing_email:
+            logger.info(f"Registration failed: Email {email} already exists")
             return jsonify({'error': 'Email sudah terdaftar'}), 409
         
-        if User.query.filter_by(username=username).first():
+        existing_username = User.query.filter_by(username=username).first()
+        if existing_username:
+            logger.info(f"Registration failed: Username {username} already exists")
             return jsonify({'error': 'Username sudah digunakan'}), 409
         
         # Create new user
@@ -73,6 +90,8 @@ def register():
         db.session.add(user)
         db.session.commit()
         
+        logger.info(f"User registered successfully: {email}")
+        
         # Create tokens
         access_token = create_access_token(identity=user.id)
         refresh_token = create_refresh_token(identity=user.id)
@@ -85,13 +104,19 @@ def register():
         }), 201
     
     except Exception as e:
+        logger.error(f"Registration error: {str(e)}")
         db.session.rollback()
         return jsonify({'error': 'Terjadi kesalahan server'}), 500
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
     try:
+        logger.info("Login attempt received")
+        
         data = request.get_json()
+        if not data:
+            logger.warning("No JSON data received in login")
+            return jsonify({'error': 'Data JSON diperlukan'}), 400
         
         email_or_username = data.get('email_or_username', '').strip().lower()
         password = data.get('password', '')
@@ -99,14 +124,23 @@ def login():
         if not email_or_username or not password:
             return jsonify({'error': 'Email/username dan password wajib diisi'}), 400
         
+        logger.info(f"Login attempt for: {email_or_username}")
+        
         # Find user by email or username
         user = User.query.filter(
             (User.email == email_or_username) | 
             (User.username == email_or_username)
         ).first()
         
-        if not user or not check_password_hash(user.password_hash, password):
+        if not user:
+            logger.info(f"Login failed: User not found for {email_or_username}")
             return jsonify({'error': 'Email/username atau password salah'}), 401
+        
+        if not check_password_hash(user.password_hash, password):
+            logger.info(f"Login failed: Wrong password for {email_or_username}")
+            return jsonify({'error': 'Email/username atau password salah'}), 401
+        
+        logger.info(f"Login successful for user: {user.email}")
         
         # Create tokens
         access_token = create_access_token(identity=user.id)
@@ -120,6 +154,7 @@ def login():
         }), 200
     
     except Exception as e:
+        logger.error(f"Login error: {str(e)}")
         return jsonify({'error': 'Terjadi kesalahan server'}), 500
 
 @auth_bp.route('/refresh', methods=['POST'])
@@ -140,6 +175,7 @@ def refresh():
         }), 200
     
     except Exception as e:
+        logger.error(f"Token refresh error: {str(e)}")
         return jsonify({'error': 'Terjadi kesalahan server'}), 500
 
 @auth_bp.route('/me', methods=['GET'])
@@ -155,6 +191,7 @@ def get_current_user():
         return jsonify({'user': user.to_dict()}), 200
     
     except Exception as e:
+        logger.error(f"Get current user error: {str(e)}")
         return jsonify({'error': 'Terjadi kesalahan server'}), 500
 
 @auth_bp.route('/logout', methods=['POST'])
@@ -197,5 +234,6 @@ def change_password():
         return jsonify({'message': 'Password berhasil diubah'}), 200
     
     except Exception as e:
+        logger.error(f"Change password error: {str(e)}")
         db.session.rollback()
         return jsonify({'error': 'Terjadi kesalahan server'}), 500
