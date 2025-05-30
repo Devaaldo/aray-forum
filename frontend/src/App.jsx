@@ -25,14 +25,17 @@ function App() {
 
 	if (loading) {
 		return (
-			<div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-				<LoadingSpinner size="lg" />
+			<div className="min-h-screen bg-red-500 flex items-center justify-center test-class">
+				<div className="bg-blue-500 p-8 rounded-lg">
+					<LoadingSpinner size="lg" />
+					<p className="text-white mt-4">Testing Tailwind CSS...</p>
+				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+		<div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 test-class">
 			<AnimatePresence mode="wait">
 				<Routes>
 					{/* Public Routes */}

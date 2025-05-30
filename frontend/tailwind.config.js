@@ -31,9 +31,6 @@ export default {
 					900: "#111827",
 					950: "#030712",
 				},
-				background: "hsl(var(--background))",
-				foreground: "hsl(var(--foreground))",
-				border: "hsl(var(--border))",
 			},
 			fontFamily: {
 				sans: ["Inter", "system-ui", "sans-serif"],

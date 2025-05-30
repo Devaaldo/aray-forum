@@ -18,48 +18,15 @@
 		/>
 		<meta property="og:type" content="website" />
 		<meta property="og:url" content="https://aray-forum.com" />
-		<meta property="og:image" content="/og-image.png" />
-
-		<!-- Twitter Card Meta Tags -->
-		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content="Aray Forum" />
-		<meta
-			name="twitter:description"
-			content="Join the conversation on Aray Forum - where ideas meet and discussions thrive"
-		/>
-		<meta name="twitter:image" content="/twitter-image.png" />
-
-		<!-- PWA Meta Tags -->
-		<link rel="manifest" href="/manifest.json" />
-		<meta name="mobile-web-app-capable" content="yes" />
-		<meta name="apple-mobile-web-app-capable" content="yes" />
-		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-		<meta name="apple-mobile-web-app-title" content="Aray Forum" />
 
 		<!-- Preload Critical Resources -->
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-		<title>Aray Forum - Modern Discussion Platform</title>
+		<title>Aray Forum</title>
 	</head>
 	<body>
 		<div id="root"></div>
 		<script type="module" src="/src/main.jsx"></script>
-
-		<!-- Service Worker Registration -->
-		<script>
-			if ("serviceWorker" in navigator) {
-				window.addEventListener("load", function () {
-					navigator.serviceWorker
-						.register("/sw.js")
-						.then(function (registration) {
-							console.log("SW registered: ", registration);
-						})
-						.catch(function (registrationError) {
-							console.log("SW registration failed: ", registrationError);
-						});
-				});
-			}
-		</script>
 	</body>
 </html>
