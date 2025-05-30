@@ -1,177 +1,171 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { authApi } from "../services/api";
-import toast from "react-hot-toast";
+import axios from "axios";
 
-const useAuthStore = create(
-	persist(
-		(set, get) => ({
-			user: null,
-			token: null,
-			refreshToken: null,
-			loading: false,
-			isAuthenticated: false,
+// Create axios instance
+const api = axios.create({
+	baseURL: "/api",
+	headers: {
+		"Content-Type": "application/json",
+	},
+});
 
-			// Actions
-			login: async (credentials) => {
-				set({ loading: true });
-				try {
-					const response = await authApi.login(credentials);
-					const { user, access_token, refresh_token } = response.data;
-
-					set({
-						user,
-						token: access_token,
-						refreshToken: refresh_token,
-						isAuthenticated: true,
-						loading: false,
-					});
-
-					// Set token in axios defaults
-					authApi.setAuthToken(access_token);
-
-					toast.success(`Selamat datang, ${user.name}!`);
-					return { success: true };
-				} catch (error) {
-					set({ loading: false });
-					const message = error.response?.data?.error || "Login gagal";
-					toast.error(message);
-					return { success: false, error: message };
+// Request interceptor to add auth token
+api.interceptors.request.use(
+	(config) => {
+		const token = localStorage.getItem("auth-storage");
+		if (token) {
+			try {
+				const parsedData = JSON.parse(token);
+				if (parsedData.state?.token) {
+					config.headers.Authorization = `Bearer ${parsedData.state.token}`;
 				}
-			},
-
-			register: async (userData) => {
-				set({ loading: true });
-				try {
-					const response = await authApi.register(userData);
-					const { user, access_token, refresh_token } = response.data;
-
-					set({
-						user,
-						token: access_token,
-						refreshToken: refresh_token,
-						isAuthenticated: true,
-						loading: false,
-					});
-
-					// Set token in axios defaults
-					authApi.setAuthToken(access_token);
-
-					toast.success(`Selamat datang, ${user.name}!`);
-					return { success: true };
-				} catch (error) {
-					set({ loading: false });
-					const message = error.response?.data?.error || "Registrasi gagal";
-					toast.error(message);
-					return { success: false, error: message };
-				}
-			},
-
-			logout: async () => {
-				try {
-					await authApi.logout();
-				} catch (error) {
-					console.error("Logout error:", error);
-				}
-
-				set({
-					user: null,
-					token: null,
-					refreshToken: null,
-					isAuthenticated: false,
-				});
-
-				// Remove token from axios defaults
-				authApi.setAuthToken(null);
-
-				toast.success("Berhasil logout");
-			},
-
-			refreshAuth: async () => {
-				const { refreshToken } = get();
-				if (!refreshToken) return false;
-
-				try {
-					const response = await authApi.refresh(refreshToken);
-					const { user, access_token } = response.data;
-
-					set({
-						user,
-						token: access_token,
-						isAuthenticated: true,
-					});
-
-					// Set token in axios defaults
-					authApi.setAuthToken(access_token);
-
-					return true;
-				} catch (error) {
-					console.error("Token refresh failed:", error);
-					get().logout();
-					return false;
-				}
-			},
-
-			checkAuth: async () => {
-				const { token } = get();
-				if (!token) {
-					set({ loading: false });
-					return;
-				}
-
-				set({ loading: true });
-				try {
-					// Set token in axios defaults
-					authApi.setAuthToken(token);
-
-					const response = await authApi.getCurrentUser();
-					const { user } = response.data;
-
-					set({
-						user,
-						isAuthenticated: true,
-						loading: false,
-					});
-				} catch (error) {
-					console.error("Auth check failed:", error);
-					// Try to refresh token
-					const refreshSuccess = await get().refreshAuth();
-					if (!refreshSuccess) {
-						get().logout();
-					}
-					set({ loading: false });
-				}
-			},
-
-			updateUser: (userData) => {
-				set((state) => ({
-					user: { ...state.user, ...userData },
-				}));
-			},
-
-			changePassword: async (passwordData) => {
-				try {
-					await authApi.changePassword(passwordData);
-					toast.success("Password berhasil diubah");
-					return { success: true };
-				} catch (error) {
-					const message =
-						error.response?.data?.error || "Gagal mengubah password";
-					toast.error(message);
-					return { success: false, error: message };
-				}
-			},
-		}),
-		{
-			name: "auth-storage",
-			partialize: (state) => ({
-				user: state.user,
-				token: state.token,
-				refreshToken: state.refreshToken,
-				isAuthenticated: state.isAuthenticated,
-			}),
+			} catch (error) {
+				console.error("Error parsing auth token:", error);
+			}
 		}
-	)
+		return config;
+	},
+	(error) => {
+		return Promise.reject(error);
+	}
 );
 
-export { useAuthStore };
+// Response interceptor to handle auth errors
+api.interceptors.response.use(
+	(response) => response,
+	async (error) => {
+		if (error.response?.status === 401) {
+			// Token expired or invalid
+			localStorage.removeItem("auth-storage");
+			window.location.href = "/auth";
+		}
+		return Promise.reject(error);
+	}
+);
+
+// Auth API
+export const authApi = {
+	setAuthToken: (token) => {
+		if (token) {
+			api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+		} else {
+			delete api.defaults.headers.common["Authorization"];
+		}
+	},
+
+	register: (userData) => api.post("/auth/register", userData),
+
+	login: (credentials) => api.post("/auth/login", credentials),
+
+	logout: () => api.post("/auth/logout"),
+
+	refresh: (refreshToken) =>
+		api.post("/auth/refresh", { refresh_token: refreshToken }),
+
+	getCurrentUser: () => api.get("/auth/me"),
+
+	changePassword: (passwordData) =>
+		api.post("/auth/change-password", passwordData),
+};
+
+// Posts API
+export const postsApi = {
+	getPosts: (params = {}) => api.get("/posts", { params }),
+
+	createPost: (postData) => api.post("/posts", postData),
+
+	getPost: (postId) => api.get(`/posts/${postId}`),
+
+	deletePost: (postId) => api.delete(`/posts/${postId}`),
+
+	likePost: (postId) => api.post(`/posts/${postId}/like`),
+
+	unlikePost: (postId) => api.post(`/posts/${postId}/unlike`),
+
+	repost: (postId) => api.post(`/posts/${postId}/repost`),
+
+	unrepost: (postId) => api.post(`/posts/${postId}/unrepost`),
+
+	getComments: (postId, params = {}) =>
+		api.get(`/posts/${postId}/comments`, { params }),
+
+	createComment: (postId, commentData) =>
+		api.post(`/posts/${postId}/comments`, commentData),
+
+	searchPosts: (query, params = {}) =>
+		api.get("/posts/search", {
+			params: { q: query, ...params },
+		}),
+};
+
+// Users API
+export const usersApi = {
+	getUser: (userId) => api.get(`/users/${userId}`),
+
+	getUserByUsername: (username) => api.get(`/users/${username}`),
+
+	updateProfile: (userData) => api.put("/users/me", userData),
+
+	followUser: (userId) => api.post(`/users/${userId}/follow`),
+
+	unfollowUser: (userId) => api.post(`/users/${userId}/unfollow`),
+
+	getFollowers: (userId, params = {}) =>
+		api.get(`/users/${userId}/followers`, { params }),
+
+	getFollowing: (userId, params = {}) =>
+		api.get(`/users/${userId}/following`, { params }),
+
+	searchUsers: (query, params = {}) =>
+		api.get("/users/search", {
+			params: { q: query, ...params },
+		}),
+
+	getUserSuggestions: () => api.get("/users/suggestions"),
+
+	getNotifications: (params = {}) =>
+		api.get("/users/notifications", { params }),
+
+	markNotificationsRead: (notificationIds = []) =>
+		api.post("/users/notifications/mark-read", {
+			notification_ids: notificationIds,
+		}),
+};
+
+// Upload API
+export const uploadApi = {
+	uploadImage: (file) => {
+		const formData = new FormData();
+		formData.append("file", file);
+		return api.post("/upload/image", formData, {
+			headers: {
+				"Content-Type": "multipart/form-data",
+			},
+		});
+	},
+
+	uploadAvatar: (file) => {
+		const formData = new FormData();
+		formData.append("file", file);
+		return api.post("/upload/avatar", formData, {
+			headers: {
+				"Content-Type": "multipart/form-data",
+			},
+		});
+	},
+
+	uploadBanner: (file) => {
+		const formData = new FormData();
+		formData.append("file", file);
+		return api.post("/upload/banner", formData, {
+			headers: {
+				"Content-Type": "multipart/form-data",
+			},
+		});
+	},
+
+	deleteFile: (filename) => api.post("/upload/delete", { filename }),
+
+	cleanupFiles: () => api.post("/upload/cleanup"),
+};
+
+export default api;

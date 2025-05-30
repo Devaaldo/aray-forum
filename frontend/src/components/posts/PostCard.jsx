@@ -1,179 +1,236 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Image, X } from "lucide-react";
-import { useDropzone } from "react-dropzone";
-import { postsApi, uploadApi } from "../../services/api";
+import {
+	Heart,
+	MessageCircle,
+	Repeat2,
+	Share,
+	MoreHorizontal,
+	Trash2,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { id } from "date-fns/locale";
+import { postsApi } from "../../services/api";
 import { useAuthStore } from "../../store/authStore";
-import Button from "../ui/Button";
-import Textarea from "../ui/Textarea";
 import Avatar from "../ui/Avatar";
+import Button from "../ui/Button";
 import toast from "react-hot-toast";
 
-const CreatePost = () => {
-	const { user } = useAuthStore();
+const PostCard = ({ post }) => {
+	const { user: currentUser } = useAuthStore();
 	const queryClient = useQueryClient();
-	const [uploadedImage, setUploadedImage] = useState(null);
-	const [imagePreview, setImagePreview] = useState(null);
+	const [showMenu, setShowMenu] = useState(false);
 
-	const { register, handleSubmit, watch, reset, setValue } = useForm();
-	const content = watch("content", "");
-
-	// Upload image mutation
-	const uploadMutation = useMutation({
-		mutationFn: (file) => uploadApi.uploadImage(file),
-		onSuccess: (response) => {
-			setUploadedImage(response.data.file_url);
-		},
-		onError: () => {
-			toast.error("Gagal mengupload gambar");
-			setImagePreview(null);
-		},
-	});
-
-	// Create post mutation
-	const createPostMutation = useMutation({
-		mutationFn: (postData) => postsApi.createPost(postData),
+	// Like mutation
+	const likeMutation = useMutation({
+		mutationFn: () =>
+			post.is_liked ? postsApi.unlikePost(post.id) : postsApi.likePost(post.id),
 		onSuccess: () => {
-			toast.success("Postingan berhasil dibuat!");
-			reset();
-			setUploadedImage(null);
-			setImagePreview(null);
 			queryClient.invalidateQueries(["posts"]);
 		},
 		onError: (error) => {
-			const message = error.response?.data?.error || "Gagal membuat postingan";
-			toast.error(message);
+			toast.error(error.response?.data?.error || "Gagal memproses like");
 		},
 	});
 
-	const onDrop = (acceptedFiles) => {
-		const file = acceptedFiles[0];
-		if (file) {
-			// Create preview
-			const reader = new FileReader();
-			reader.onload = () => setImagePreview(reader.result);
-			reader.readAsDataURL(file);
-
-			// Upload file
-			uploadMutation.mutate(file);
-		}
-	};
-
-	const { getRootProps, getInputProps, isDragActive } = useDropzone({
-		onDrop,
-		accept: {
-			"image/*": [".png", ".jpg", ".jpeg", ".gif"],
+	// Repost mutation
+	const repostMutation = useMutation({
+		mutationFn: () =>
+			post.is_reposted ? postsApi.unrepost(post.id) : postsApi.repost(post.id),
+		onSuccess: () => {
+			queryClient.invalidateQueries(["posts"]);
 		},
-		maxFiles: 1,
-		maxSize: 16 * 1024 * 1024, // 16MB
+		onError: (error) => {
+			toast.error(error.response?.data?.error || "Gagal memproses repost");
+		},
 	});
 
-	const onSubmit = (data) => {
-		if (!data.content.trim() && !uploadedImage) {
-			toast.error("Konten atau gambar wajib diisi");
-			return;
+	// Delete mutation
+	const deleteMutation = useMutation({
+		mutationFn: () => postsApi.deletePost(post.id),
+		onSuccess: () => {
+			toast.success("Postingan berhasil dihapus");
+			queryClient.invalidateQueries(["posts"]);
+		},
+		onError: (error) => {
+			toast.error(error.response?.data?.error || "Gagal menghapus postingan");
+		},
+	});
+
+	const formatDate = (dateString) => {
+		try {
+			return formatDistanceToNow(new Date(dateString), {
+				addSuffix: true,
+				locale: id,
+			});
+		} catch {
+			return "Baru saja";
 		}
-
-		createPostMutation.mutate({
-			content: data.content.trim(),
-			media_url: uploadedImage,
-			media_type: uploadedImage ? "image" : null,
-		});
 	};
 
-	const removeImage = () => {
-		setImagePreview(null);
-		setUploadedImage(null);
+	const handleShare = async () => {
+		try {
+			await navigator.share({
+				title: `Post by ${post.author.name}`,
+				text: post.content,
+				url: window.location.href,
+			});
+		} catch (error) {
+			// Fallback to clipboard
+			try {
+				await navigator.clipboard.writeText(window.location.href);
+				toast.success("Link disalin ke clipboard");
+			} catch {
+				toast.error("Gagal membagikan postingan");
+			}
+		}
 	};
 
-	const isLoading = createPostMutation.isPending || uploadMutation.isPending;
-	const characterCount = content.length;
-	const isOverLimit = characterCount > 280;
+	const isOwner = currentUser?.id === post.author.id;
 
 	return (
-		<div className="p-6">
-			<form onSubmit={handleSubmit(onSubmit)}>
-				<div className="flex space-x-4">
-					<Avatar src={user?.avatar_url} alt={user?.name} size="md" />
+		<div className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200 border-b border-gray-200 dark:border-gray-700">
+			<div className="flex space-x-3">
+				{/* Avatar */}
+				<Link to={`/profile/${post.author.username}`}>
+					<Avatar
+						src={post.author.avatar_url}
+						alt={post.author.name}
+						size="md"
+						className="cursor-pointer hover:opacity-80 transition-opacity"
+					/>
+				</Link>
 
-					<div className="flex-1 space-y-4">
-						<Textarea
-							{...register("content")}
-							placeholder="Apa yang sedang terjadi?"
-							rows={3}
-							className="text-lg resize-none border-none focus:ring-0 p-0"
-						/>
+				<div className="flex-1 min-w-0">
+					{/* Header */}
+					<div className="flex items-center justify-between">
+						<div className="flex items-center space-x-2">
+							<Link
+								to={`/profile/${post.author.username}`}
+								className="hover:underline"
+							>
+								<span className="font-medium text-gray-900 dark:text-white">
+									{post.author.name}
+								</span>
+							</Link>
+							<span className="text-gray-500 dark:text-gray-400">
+								@{post.author.username}
+							</span>
+							<span className="text-gray-500 dark:text-gray-400">·</span>
+							<span className="text-gray-500 dark:text-gray-400 text-sm">
+								{formatDate(post.created_at)}
+							</span>
+						</div>
 
-						{/* Image Preview */}
-						{imagePreview && (
-							<div className="relative inline-block">
-								<img
-									src={imagePreview}
-									alt="Preview"
-									className="rounded-xl max-h-64 object-cover"
-								/>
-								<button
-									type="button"
-									onClick={removeImage}
-									className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors"
+						{/* Menu */}
+						{isOwner && (
+							<div className="relative">
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => setShowMenu(!showMenu)}
+									className="opacity-0 group-hover:opacity-100 transition-opacity"
 								>
-									<X size={16} />
-								</button>
-							</div>
-						)}
+									<MoreHorizontal size={16} />
+								</Button>
 
-						{/* Actions */}
-						<div className="flex items-center justify-between">
-							<div className="flex items-center space-x-4">
-								{/* Image Upload */}
-								<div {...getRootProps()}>
-									<input {...getInputProps()} />
-									<button
-										type="button"
-										className={`p-2 rounded-full transition-colors duration-200 ${
-											isDragActive
-												? "text-primary-600 bg-primary-100"
-												: "text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:text-gray-400 dark:hover:text-primary-400 dark:hover:bg-primary-900/20"
-										}`}
-										disabled={uploadMutation.isPending}
-									>
-										<Image size={20} />
-									</button>
-								</div>
-							</div>
-
-							<div className="flex items-center space-x-4">
-								{/* Character Count */}
-								{content && (
-									<div
-										className={`text-sm ${
-											isOverLimit
-												? "text-red-500"
-												: characterCount > 240
-												? "text-yellow-500"
-												: "text-gray-500"
-										}`}
-									>
-										{280 - characterCount}
+								{showMenu && (
+									<div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+										<button
+											onClick={() => {
+												deleteMutation.mutate();
+												setShowMenu(false);
+											}}
+											className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2"
+										>
+											<Trash2 size={16} />
+											<span>Hapus</span>
+										</button>
 									</div>
 								)}
-
-								{/* Submit Button */}
-								<Button
-									type="submit"
-									loading={isLoading}
-									disabled={(!content.trim() && !uploadedImage) || isOverLimit}
-								>
-									Post
-								</Button>
 							</div>
-						</div>
+						)}
+					</div>
+
+					{/* Content */}
+					<div className="mt-2">
+						{post.content && (
+							<p className="text-gray-900 dark:text-white whitespace-pre-wrap">
+								{post.content}
+							</p>
+						)}
+
+						{/* Media */}
+						{post.media_url && post.media_type === "image" && (
+							<div className="mt-3">
+								<img
+									src={post.media_url}
+									alt="Post media"
+									className="rounded-xl max-h-96 w-full object-cover"
+								/>
+							</div>
+						)}
+					</div>
+
+					{/* Actions */}
+					<div className="flex items-center justify-between mt-4 max-w-md">
+						{/* Comments */}
+						<Button
+							variant="ghost"
+							size="sm"
+							className="flex items-center space-x-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+						>
+							<MessageCircle size={18} />
+							<span className="text-sm">{post.comments_count}</span>
+						</Button>
+
+						{/* Repost */}
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => repostMutation.mutate()}
+							loading={repostMutation.isPending}
+							className={`flex items-center space-x-2 ${
+								post.is_reposted
+									? "text-green-600"
+									: "text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+							}`}
+						>
+							<Repeat2 size={18} />
+							<span className="text-sm">{post.reposts_count}</span>
+						</Button>
+
+						{/* Like */}
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => likeMutation.mutate()}
+							loading={likeMutation.isPending}
+							className={`flex items-center space-x-2 ${
+								post.is_liked
+									? "text-red-600"
+									: "text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+							}`}
+						>
+							<Heart size={18} fill={post.is_liked ? "currentColor" : "none"} />
+							<span className="text-sm">{post.likes_count}</span>
+						</Button>
+
+						{/* Share */}
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleShare}
+							className="flex items-center space-x-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+						>
+							<Share size={18} />
+						</Button>
 					</div>
 				</div>
-			</form>
+			</div>
 		</div>
 	);
 };
 
-export default CreatePost;
+export default PostCard;
